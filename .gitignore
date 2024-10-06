@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /lib/Assembly-CSharp.dll
 /lib/netstandard.dll
+/lib/AutoSetPrices.dll

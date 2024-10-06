@@ -15,20 +15,18 @@ public class Plugin : BaseUnityPlugin
 
     private readonly Harmony harmony = new Harmony(CSInfo.PLUGIN_NAME);
 
-    //internal static float SellOnlyGreaterThanMP = 0.50f;
-    //internal static float SellOnlyLessThanMP = 100.00f;
+    internal static ConfigEntry<bool> m_ConfigShouldTriggerOnCustomerCardPickup;
+
     internal static ConfigEntry<float> m_ConfigSellOnlyGreaterThanMP;
     internal static ConfigEntry<float> m_ConfigSellOnlyLessThanMP;
     internal static ConfigEntry<KeyboardShortcut> m_ConfigKeyboardTriggerCardSet;
 
-    //private ConfigEntry<bool> m_SetLowerPriceLimit;
-    //private ConfigEntry<bool> m_SetUpperPriceLimit;
-
     private void InitConfig()
     {
+        m_ConfigShouldTriggerOnCustomerCardPickup = Config.Bind("General", "ShouldTriggerOnCardPickup", false, "Do you want your cards to automatically be placed on all empty shelves whenever a customer picks up a card?");
         m_ConfigSellOnlyGreaterThanMP = Config.Bind("General", "SellOnlyGreaterThan", 0.50f, "Ignore cards in the album with a market value below this.");
         m_ConfigSellOnlyLessThanMP = Config.Bind("General", "SellOnlyLessThan", 100.00f, "Ignore cards in the album with a market value above this.");
-        m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCards", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
+        m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCardsKey", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
     }
         
     private void Awake()

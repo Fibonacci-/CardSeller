@@ -100,7 +100,11 @@ public static class PatchIt
     {
         Plugin.Logger.LogInfo("Customer took a card from the shelf! Filling all empty card sale shelves...");
 
-        DoShelfPut();
+        if (Plugin.m_ConfigShouldTriggerOnCustomerCardPickup.Value)
+        {
+            DoShelfPut();
+        }
+        
     }
 
     [HarmonyPatch(typeof(CGameManager), "Update")]

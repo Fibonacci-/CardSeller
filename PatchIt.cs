@@ -23,8 +23,9 @@ public static class PatchIt
         foreach (CardShelf shelf in cardShelfList)
         {
             List<InteractableCardCompartment> cardCompartments = shelf.GetCardCompartmentList();
-            foreach (InteractableCardCompartment cardCompart in cardCompartments)
+            for(int j = 0; j < cardCompartments.Count; j++)
             {
+                InteractableCardCompartment cardCompart = cardCompartments[j];
                 if (cardCompart.m_StoredCardList.Count == 0 && !cardCompart.m_ItemNotForSale)
                 {
                     //instantiate card
@@ -74,6 +75,19 @@ public static class PatchIt
                         cardUi.m_IgnoreCulling = false;
                         Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
                         CPlayerData.ReduceCard(cardData, 1);
+                        if (Harmony.HasAnyPatches("AutoSetPrices") && Plugin.m_ConfigTryTriggerAutoSetPricesMod.Value)
+                        {
+                            //try to ask it to update prices
+                            try
+                            {
+                                Plugin.Logger.LogInfo("Asking AutoSetPrices to update price in card slot.");
+                                TellAutoSetPrices(ref cardCompart);
+                            }
+                            catch (Exception e)
+                            {
+                                Plugin.Logger.LogError("Couldn't ask AutoSetPrices to update price in card slot! Stacktrace:\r\n" + e.Message);
+                            }
+                        }
                     }
 
                 }
@@ -82,29 +96,48 @@ public static class PatchIt
         isRunning = false;
     }
 
+    private static void TellAutoSetPrices(ref InteractableCardCompartment cardCompart)
+    {
+        //this needs to stay in its own function
+        //otherwise, Unity will try to load AutoSetPrices.dll when DoShelfPut() is triggered
+        //regardless of the Harmony.HasAnyPatches check
+        //which will obviously crash the mod's shelf put attempt
+        //so: only reference the function that uses the AutoSetPrices library AFTER checking to see if it's present
+        AutoSetPrices.AllPatchs.CardCompartOnMouseButtonUpPostfix(ref cardCompart);
+    }
+
     [HarmonyPatch(typeof(CPlayerData), "ReduceCard")]
     [HarmonyPostfix]
     private static void OnReduceCardPostFix(CPlayerData __instance, CardData cardData, int reduceAmount)
     {
         Plugin.Logger.LogInfo("Reduce card was called!");
 
-        Plugin.Logger.LogMessage("Reduced " + cardData.monsterType.ToString() + " by " + reduceAmount);
+        Plugin.Logger.LogInfo("Reduced " + cardData.monsterType.ToString() + " by " + reduceAmount);
         int cardIndex = CPlayerData.GetCardSaveIndex(cardData);
         int heldCards = CPlayerData.GetCardAmountByIndex(cardIndex, ECardExpansionType.Tetramon, false);
-        Plugin.Logger.LogMessage("Player card amount for monster " + cardData.monsterType.ToString() + " with index " + cardIndex + " is " + heldCards + " num cards.");
+        Plugin.Logger.LogInfo("Player card amount for monster " + cardData.monsterType.ToString() + " with index " + cardIndex + " is " + heldCards + " num cards.");
     }
 
     [HarmonyPatch(typeof(Customer), "TakeCardFromShelf")]
     [HarmonyPostfix]
     private static void OnCustomerTakeCardFromShelfPostFix(Customer __instance, List<InteractableCard3d> ___m_CardInBagList)
     {
-        Plugin.Logger.LogInfo("Customer took a card from the shelf! Filling all empty card sale shelves...");
-
         if (Plugin.m_ConfigShouldTriggerOnCustomerCardPickup.Value)
         {
+            Plugin.Logger.LogInfo("Customer took a card from the shelf! Filling all empty card sale shelves...");
             DoShelfPut();
         }
         
+    }
+    [HarmonyPatch(typeof(PriceChangeManager), "OnDayStarted")]
+    [HarmonyPostfix]
+    private static void OnOnDayStarted()
+    {
+        if (Plugin.m_ConfigShouldTriggerOnDayStart.Value)
+        {
+            Plugin.Logger.LogInfo("Day started. Filling shelves...");
+            DoShelfPut();
+        }
     }
 
     [HarmonyPatch(typeof(CGameManager), "Update")]

@@ -38,4 +38,8 @@
       <Private>True</Private>
     </Reference>
   </ItemGroup>
+  
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /q /y &quot;$(ProjectDir)\bin\Debug\net46\CardSeller.dll&quot; &quot;D:\SteamLibrary\steamapps\common\TCG Card Shop Simulator\BepInEx\scripts\&quot;&#xD;&#xA;xcopy /q /y &quot;$(ProjectDir)\bin\Debug\net46\CardSeller.pdb&quot; &quot;D:\SteamLibrary\steamapps\common\TCG Card Shop Simulator\BepInEx\scripts\&quot;&#xD;&#xA;&#xD;&#xA;&#xD;&#xA;" />
+  </Target>
 </Project>

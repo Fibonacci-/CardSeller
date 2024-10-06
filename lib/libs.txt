@@ -1,0 +1,3 @@
+Find and add the following .dlls from the game files to this folder:
+Assembly-CSharp.dll
+netstandard.dll

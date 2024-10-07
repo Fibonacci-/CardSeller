@@ -44,11 +44,12 @@ public static class PatchIt
                     //there's probably a better way to do this than re-initing this list for every card compartment
                     //but then i'd have to keep this matching card list in sync with inventory while both are being modified in the loop
                     //and that's fine and stuff but eerily similar to a super weird race condition i spent way too long debugging awhile back
-                    //so we'll do it the lazy way
+                    //so we'll do it the lazy way. TODO refactor in 1.0.2
                     List<CardData> allMatchingCards = new List<CardData>();
 
                     for (int i = 0; i < cardList.Count; i++)
                     {
+                        //integer value in list index i contains the count of held cards of that index
                         int numHeldCards = cardList[i];
                         if (numHeldCards > numHeldCardsShouldBeOver)
                         {
@@ -56,9 +57,11 @@ public static class PatchIt
                             CardData insp = CPlayerData.GetCardData(i, ECardExpansionType.Tetramon, false);
                             Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString());
                             float currentMP = CPlayerData.GetCardMarketPrice(insp);
+
+                            //check to see if the card's price is within the bounds of the high/low inclusion configuration
                             if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
                             {
-                                cardData = insp;
+                                //cardData = insp;
                                 allMatchingCards.Add(insp);
                                 Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Adding to list...");
                                 
@@ -76,6 +79,7 @@ public static class PatchIt
                         allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
                         //Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
                         //Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
+                        //grab first card in the sorted list
                         cardData = allMatchingCards[0];
                     }
 
@@ -83,6 +87,8 @@ public static class PatchIt
                     if (cardData != null && cardData.monsterType != EMonsterType.None)
                     {
                         //ref card shelf load from save method
+                        //dunno what most of it does precisely but it works
+                        //basically, create a card such that it can be placed on a shelf and be picked up by customers
                         Plugin.Logger.LogInfo("Initing game object for " + cardData.monsterType.ToString());
                         Card3dUIGroup cardUi = CSingleton<Card3dUISpawner>.Instance.GetCardUI();
                         InteractableCard3d component = ShelfManager.SpawnInteractableObject(EObjectType.Card3d).GetComponent<InteractableCard3d>();
@@ -94,9 +100,11 @@ public static class PatchIt
                         cardUi.transform.rotation = component.transform.rotation;
                         component.SetCardUIFollow(cardUi);
                         component.SetEnableCollision(false);
+                        //actually set the card on the shelf
                         cardCompart.SetCardOnShelf(component);
                         cardUi.m_IgnoreCulling = false;
                         Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
+                        //decrement inventory for that card
                         CPlayerData.ReduceCard(cardData, 1);
                         if (Harmony.HasAnyPatches("AutoSetPrices") && Plugin.m_ConfigTryTriggerAutoSetPricesMod.Value)
                         {
@@ -104,6 +112,7 @@ public static class PatchIt
                             try
                             {
                                 Plugin.Logger.LogInfo("Asking AutoSetPrices to update price in card slot.");
+                                //this lives in another function because the library is loaded on entry to the function that references it
                                 TellAutoSetPrices(ref cardCompart);
                             }
                             catch (Exception e)

@@ -19,35 +19,49 @@ public static class PatchIt
         if(isRunning) return;
         isRunning = true;
 
+        //allow for selling only duplicates
+        int numHeldCardsShouldBeOver = 0;
+        if(Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+
+        //find all card shelves in the shop
         List<CardShelf> cardShelfList = CSingleton<ShelfManager>.Instance.m_CardShelfList;
         foreach (CardShelf shelf in cardShelfList)
         {
+            //find all the compartments in that shelf
             List<InteractableCardCompartment> cardCompartments = shelf.GetCardCompartmentList();
             for(int j = 0; j < cardCompartments.Count; j++)
             {
+                //will pass by ref later. can't use foreach
                 InteractableCardCompartment cardCompart = cardCompartments[j];
                 if (cardCompart.m_StoredCardList.Count == 0 && !cardCompart.m_ItemNotForSale)
                 {
                     //instantiate card
-                    //find items in the CardCollectedList where we have more than 0 in inventory
+                    //find items in the CardCollectedList where we have more than X in inventory
                     List<int> cardList = CPlayerData.GetCardCollectedList(ECardExpansionType.Tetramon, false);
 
                     CardData cardData = null;
 
+                    //there's probably a better way to do this than re-initing this list for every card compartment
+                    //but then i'd have to keep this matching card list in sync with inventory while both are being modified in the loop
+                    //and that's fine and stuff but eerily similar to a super weird race condition i spent way too long debugging awhile back
+                    //so we'll do it the lazy way
+                    List<CardData> allMatchingCards = new List<CardData>();
+
                     for (int i = 0; i < cardList.Count; i++)
                     {
                         int numHeldCards = cardList[i];
-                        if (numHeldCards > 0)
+                        if (numHeldCards > numHeldCardsShouldBeOver)
                         {
-                            //when we find a held card, grab the card data for it and break out of the loop
+                            //when we find a held card, grab the card data for it and put it in the card array
                             CardData insp = CPlayerData.GetCardData(i, ECardExpansionType.Tetramon, false);
                             Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString());
                             float currentMP = CPlayerData.GetCardMarketPrice(insp);
                             if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
                             {
                                 cardData = insp;
-                                Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Continuing to place...");
-                                break;
+                                allMatchingCards.Add(insp);
+                                Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Adding to list...");
+                                
                             }
                             else
                             {
@@ -56,6 +70,15 @@ public static class PatchIt
 
                         }
                     }
+                    if (allMatchingCards.Count > 0)
+                    {
+                        //get the largest card
+                        allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
+                        //Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
+                        //Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
+                        cardData = allMatchingCards[0];
+                    }
+
 
                     if (cardData != null && cardData.monsterType != EMonsterType.None)
                     {

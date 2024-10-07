@@ -16,23 +16,36 @@ public class Plugin : BaseUnityPlugin
 
     private readonly Harmony harmony = new Harmony(CSInfo.PLUGIN_NAME);
 
-    internal static ConfigEntry<bool> m_ConfigShouldTriggerOnCustomerCardPickup;
+    //general config settings
     internal static ConfigEntry<float> m_ConfigSellOnlyGreaterThanMP;
     internal static ConfigEntry<float> m_ConfigSellOnlyLessThanMP;
     internal static ConfigEntry<KeyboardShortcut> m_ConfigKeyboardTriggerCardSet;
+    internal static ConfigEntry<bool> m_ConfigOnlySellDuplicates;
+
+    //trigger config settings
+    internal static ConfigEntry<bool> m_ConfigShouldTriggerOnCustomerCardPickup;
     internal static ConfigEntry<bool> m_ConfigShouldTriggerOnDayStart;
+
+    //mod int config settings
     internal static ConfigEntry<bool> m_ConfigTryTriggerAutoSetPricesMod;
 
     private void InitConfig()
     {
-        m_ConfigShouldTriggerOnCustomerCardPickup = Config.Bind("Triggers", "ShouldTriggerOnCardPickup", false, "Do you want your cards to automatically be placed on all empty shelves whenever a customer picks up a card?");
+        //general config init
         m_ConfigSellOnlyGreaterThanMP = Config.Bind("General", "SellOnlyGreaterThan", 0.50f, "Ignore cards in the album with a market value below this.");
         m_ConfigSellOnlyLessThanMP = Config.Bind("General", "SellOnlyLessThan", 100.00f, "Ignore cards in the album with a market value above this.");
-        m_ConfigShouldTriggerOnDayStart = Config.Bind("Triggers", "ShouldTriggerOnDayStart", true, "Do you want your cards to automatically be placed on all empty shelves when the day begins?");
-        m_ConfigTryTriggerAutoSetPricesMod = Config.Bind("Mod_Integration", "ShouldTriggerAutoSetPricesMod", true, "If Auto Set Prices mod is installed, ask it to set the price of cards this mod sets on shelves? NOTE: Make sure AutoSetPrices option 'NewDayCardAutoPrice' is enabled!");
         m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCardsKey", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
-    }
+        m_ConfigOnlySellDuplicates = Config.Bind("General", "SellOnlyDuplicates", false, "Ignore cards in the album with a quantity of 1");
+
+        //trigger config init
+        m_ConfigShouldTriggerOnCustomerCardPickup = Config.Bind("Triggers", "ShouldTriggerOnCardPickup", false, "Do you want your cards to automatically be placed on all empty shelves whenever a customer picks up a card?");
+        m_ConfigShouldTriggerOnDayStart = Config.Bind("Triggers", "ShouldTriggerOnDayStart", true, "Do you want your cards to automatically be placed on all empty shelves when the day begins?");
         
+        //mod int config init
+        m_ConfigTryTriggerAutoSetPricesMod = Config.Bind("Mod_Integration", "ShouldTriggerAutoSetPricesMod", true, "If Auto Set Prices mod is installed, ask it to set the price of cards this mod sets on shelves? NOTE: Make sure AutoSetPrices option 'NewDayCardAutoPrice' is enabled!");
+
+    }
+
     private void Awake()
     {
         // Plugin startup logic

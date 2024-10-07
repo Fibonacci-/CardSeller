@@ -4,7 +4,7 @@ This is a mod for TCG Card Shop Simulator by OPNeon Games
 
 https://store.steampowered.com/app/3070070/TCG_Card_Shop_Simulator/
 
-This mod will take cards out of your card album and place them on all available card table slots. It ignores "personal" display-only card slots.
+This mod will take cards out of your card album and place them on all available card table slots in order of highest market price. It ignores "personal" display-only card slots.
 
 ***HEADS UP:*** Mods can break your game. Back up your save file before installing this mod.
 
@@ -22,3 +22,16 @@ ConfigurationManager to change the mod's config in-game without hand-editing .cf
 ## Configuration
 
 If you have ConfigurationManager installed, start the game, then press F1 to bring up the mod settings menu. Otherwise, start the game once, then access the configuration file at `\<gamedir>\BepInEx\config\io.helwig.tcgcss.CardSeller.cfg`.
+
+### Configuration options available:
+Upper and lower bounds on the market price of the cards this mod will select for placing on card tables for sale
+
+Select only duplicate cards (ignore cards in the album with a quantity of 1)
+
+Toggle for AutoSetPrice mod integration
+
+Hotkey binding
+
+Toggle for triggering this mod whenever a customer picks up a card
+
+Toggle for triggering this mod when a new day starts

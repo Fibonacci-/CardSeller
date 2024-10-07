@@ -35,3 +35,8 @@ Hotkey binding
 Toggle for triggering this mod whenever a customer picks up a card
 
 Toggle for triggering this mod when a new day starts
+
+
+## Planned features
+
+Options to exclude by border type/foil/etc

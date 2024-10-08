@@ -21,6 +21,7 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<float> m_ConfigSellOnlyLessThanMP;
     internal static ConfigEntry<KeyboardShortcut> m_ConfigKeyboardTriggerCardSet;
     internal static ConfigEntry<bool> m_ConfigOnlySellDuplicates;
+    internal static ConfigEntry<bool> m_ConfigShouldShowProgressPopUp;
 
     //filter config settings
     internal static ConfigEntry<bool> m_ConfigShouldSellTetramonCards;
@@ -42,6 +43,7 @@ public class Plugin : BaseUnityPlugin
         m_ConfigSellOnlyLessThanMP = Config.Bind("General", "SellOnlyLessThan", 100.00f, "Ignore cards in the album with a market value above this.");
         m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCardsKey", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
         m_ConfigOnlySellDuplicates = Config.Bind("General", "SellOnlyDuplicates", false, "Ignore cards in the album with a quantity of 1");
+        m_ConfigShouldShowProgressPopUp = Config.Bind("General", "ShowPopUpForNumCardsSet", false, "When the mod is triggered, show text on-screen with information about how many cards match the filter(s) and how many were placed. Note: not recommended in conjunction with the 'ShouldTriggerOnCardPickup' option.");
 
         //filter config init
         m_ConfigShouldSellTetramonCards = Config.Bind("Filters", "ShouldSellTetramonCards", true, "Do you want to sell your Tetramon set cards?");

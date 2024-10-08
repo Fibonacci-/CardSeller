@@ -1,6 +1,7 @@
 Find and add the following .dlls from the game files to this folder:
 Assembly-CSharp.dll
 netstandard.dll
+Unity.TextMeshPro.dll
 
 Download the following mod DLLs and add them to this folder:
 AutoSetPrices.dll

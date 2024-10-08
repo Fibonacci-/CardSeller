@@ -18,7 +18,7 @@ public static class PatchIt
     private static bool isRunning = false;
 
     //retrieve an unsorted list of all cards in a given expansion that match plugin settings
-    private static List<CardData> GetCompatibleCards(ECardExpansionType expansionType, bool findGhostCards = false)
+    private static List<CardData> GetCompatibleCards(ECardExpansionType expansionType, bool findGhostDimensionCards = false)
     {
         List<CardData> retVal = new List<CardData>();
 
@@ -27,7 +27,7 @@ public static class PatchIt
         if (Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
 
         //find items in the CardCollectedList where we have more than X in inventory
-        List<int> cardList = CPlayerData.GetCardCollectedList(expansionType, findGhostCards);//TODO add ghost support
+        List<int> cardList = CPlayerData.GetCardCollectedList(expansionType, findGhostDimensionCards);
 
         for (int i = 0; i < cardList.Count; i++)
         {
@@ -36,15 +36,14 @@ public static class PatchIt
             if (numHeldCards > numHeldCardsShouldBeOver)
             {
                 //when we find a held card, grab the card data for it and put it in the card array
-                CardData insp = CPlayerData.GetCardData(i, expansionType, findGhostCards);
-                Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString());
+                CardData insp = CPlayerData.GetCardData(i, expansionType, findGhostDimensionCards);
                 float currentMP = CPlayerData.GetCardMarketPrice(insp);
 
                 //check to see if the card's price is within the bounds of the high/low inclusion configuration
                 if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
                 {
                     retVal.Add(insp);
-                    Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Adding to list...");
+                    Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString() + ". Card price " + currentMP + " meets price restrictions. Adding to list...");
                 }
                 else
                 {
@@ -75,12 +74,12 @@ public static class PatchIt
         if (Plugin.m_ConfigShouldSellGhostCards.Value)
         {
             Plugin.Logger.LogInfo("Ghost selling enabled. Searching for compatible Ghost cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Tetramon, true));
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, false));
         }
         if(Plugin.m_ConfigShouldSellDestinyGhostCards.Value)
         {
             Plugin.Logger.LogInfo("Destiny Ghost selling enabled. Searching for compatible Destiny Ghost cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Destiny, true));
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, true));
         }
 
 
@@ -103,7 +102,15 @@ public static class PatchIt
         isRunning = true;
 
         List<CardData> allCardsSorted = GetCompatibleCards();
-        Plugin.Logger.LogInfo("Got " + allCardsSorted.Count + " cards to place");
+        
+        int totalMatchingCards = 0;
+        foreach (CardData card in allCardsSorted)
+        {
+            totalMatchingCards += CPlayerData.GetCardAmount(card);
+        }
+        Plugin.Logger.LogInfo("Got " + totalMatchingCards + " cards to place");
+
+        int placedCards = 0;
 
         //find all card shelves in the shop
         List<CardShelf> cardShelfList = CSingleton<ShelfManager>.Instance.m_CardShelfList;
@@ -147,7 +154,12 @@ public static class PatchIt
                         //decrement inventory for that card
                         Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
                         CPlayerData.ReduceCard(cardData, 1);
-                        allCardsSorted.Remove(cardData);
+                        if (CPlayerData.GetCardAmount(cardData) == 0)
+                        {
+                            allCardsSorted.Remove(cardData);
+                        }
+
+                        placedCards++;
 
                         if (Harmony.HasAnyPatches("AutoSetPrices") && Plugin.m_ConfigTryTriggerAutoSetPricesMod.Value)
                         {
@@ -169,6 +181,27 @@ public static class PatchIt
             }
         }
         isRunning = false;
+        if (Plugin.m_ConfigShouldShowProgressPopUp.Value)
+        {
+            string translation = "";
+            if (totalMatchingCards == 0)
+            {
+                translation = "Auto Card Place: No cards matching configured filters!";
+            }
+            else
+            {
+                translation = placedCards + " cards of " + totalMatchingCards + " possible matching cards placed.";
+            }
+            for (int index = 0; index < CSingleton<NotEnoughResourceTextPopup>.Instance.m_ShowTextGameObjectList.Count; ++index)
+            {
+                if (!CSingleton<NotEnoughResourceTextPopup>.Instance.m_ShowTextGameObjectList[index].activeSelf)
+                {
+                    CSingleton<NotEnoughResourceTextPopup>.Instance.m_ShowTextList[index].text = translation;
+                    CSingleton<NotEnoughResourceTextPopup>.Instance.m_ShowTextGameObjectList[index].gameObject.SetActive(true);
+                    break;
+                }
+            }
+        }
     }
 
     private static void TellAutoSetPrices(ref InteractableCardCompartment cardCompart)

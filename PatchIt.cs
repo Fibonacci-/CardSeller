@@ -106,7 +106,14 @@ public static class PatchIt
         int totalMatchingCards = 0;
         foreach (CardData card in allCardsSorted)
         {
-            totalMatchingCards += CPlayerData.GetCardAmount(card);
+            int tempNumCards = CPlayerData.GetCardAmount(card);
+            if (tempNumCards > 0 && Plugin.m_ConfigOnlySellDuplicates.Value)
+            {
+                //we would have already gotten only cards with 2 or more quantity
+                //subtract 1 from expected qty
+                tempNumCards--;
+            }
+            totalMatchingCards += tempNumCards;
         }
         Plugin.Logger.LogInfo("Got " + totalMatchingCards + " cards to place");
 
@@ -154,7 +161,11 @@ public static class PatchIt
                         //decrement inventory for that card
                         Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
                         CPlayerData.ReduceCard(cardData, 1);
-                        if (CPlayerData.GetCardAmount(cardData) == 0)
+
+                        //allow for selling only duplicates
+                        int numHeldCardsShouldBeOver = 0;
+                        if (Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+                        if (CPlayerData.GetCardAmount(cardData) == numHeldCardsShouldBeOver)
                         {
                             allCardsSorted.Remove(cardData);
                         }

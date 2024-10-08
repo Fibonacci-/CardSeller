@@ -4,8 +4,11 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace CardSeller;
 
@@ -14,14 +17,91 @@ public static class PatchIt
 {
     private static bool isRunning = false;
 
+    //retrieve an unsorted list of all cards in a given expansion that match plugin settings
+    private static List<CardData> GetCompatibleCards(ECardExpansionType expansionType, bool findGhostCards = false)
+    {
+        List<CardData> retVal = new List<CardData>();
+
+        //allow for selling only duplicates
+        int numHeldCardsShouldBeOver = 0;
+        if (Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+
+        //find items in the CardCollectedList where we have more than X in inventory
+        List<int> cardList = CPlayerData.GetCardCollectedList(expansionType, findGhostCards);//TODO add ghost support
+
+        for (int i = 0; i < cardList.Count; i++)
+        {
+            //integer value in list index i contains the count of held cards of that index
+            int numHeldCards = cardList[i];
+            if (numHeldCards > numHeldCardsShouldBeOver)
+            {
+                //when we find a held card, grab the card data for it and put it in the card array
+                CardData insp = CPlayerData.GetCardData(i, expansionType, findGhostCards);
+                Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString());
+                float currentMP = CPlayerData.GetCardMarketPrice(insp);
+
+                //check to see if the card's price is within the bounds of the high/low inclusion configuration
+                if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
+                {
+                    retVal.Add(insp);
+                    Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Adding to list...");
+                }
+                else
+                {
+                    Plugin.Logger.LogInfo("Card price is outside price restriction band (" + currentMP + "). Continuing search...");
+                }
+
+            }
+        }
+        return retVal;
+    }
+
+    private static List<CardData> GetCompatibleCards()
+    {
+
+        List<CardData> allMatchingCards = new List<CardData>();
+
+        //pull in whatever card lists are enabled
+        if (Plugin.m_ConfigShouldSellTetramonCards.Value)
+        {
+            Plugin.Logger.LogInfo("Tetramon selling enabled. Searching for compatible Tetramon cards...");
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Tetramon));
+        }
+        if (Plugin.m_ConfigShouldSellDestinyCards.Value)
+        {
+            Plugin.Logger.LogInfo("Destiny selling enabled. Searching for compatible Destiny cards...");
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Destiny));
+        }
+        if (Plugin.m_ConfigShouldSellGhostCards.Value)
+        {
+            Plugin.Logger.LogInfo("Ghost selling enabled. Searching for compatible Ghost cards...");
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Tetramon, true));
+        }
+        if(Plugin.m_ConfigShouldSellDestinyGhostCards.Value)
+        {
+            Plugin.Logger.LogInfo("Destiny Ghost selling enabled. Searching for compatible Destiny Ghost cards...");
+            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Destiny, true));
+        }
+
+
+        if (allMatchingCards.Count > 0)
+        {
+            //get the largest card
+            allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
+            Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
+            Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
+        }
+        return allMatchingCards;
+    }
+
+
+
     private static void DoShelfPut()
     {
         if(isRunning) return;
         isRunning = true;
 
-        //allow for selling only duplicates
-        int numHeldCardsShouldBeOver = 0;
-        if(Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+        List<CardData> allCardsSorted = GetCompatibleCards();
 
         //find all card shelves in the shop
         List<CardShelf> cardShelfList = CSingleton<ShelfManager>.Instance.m_CardShelfList;
@@ -29,6 +109,9 @@ public static class PatchIt
         {
             //find all the compartments in that shelf
             List<InteractableCardCompartment> cardCompartments = shelf.GetCardCompartmentList();
+            int maxLoop = cardCompartments.Count;
+            if(maxLoop > allCardsSorted.Count) maxLoop = allCardsSorted.Count;
+
             for(int j = 0; j < cardCompartments.Count; j++)
             {
                 //will pass by ref later. can't use foreach
@@ -36,54 +119,8 @@ public static class PatchIt
                 if (cardCompart.m_StoredCardList.Count == 0 && !cardCompart.m_ItemNotForSale)
                 {
                     //instantiate card
-                    //find items in the CardCollectedList where we have more than X in inventory
-                    List<int> cardList = CPlayerData.GetCardCollectedList(ECardExpansionType.Tetramon, false);
-
-                    CardData cardData = null;
-
-                    //there's probably a better way to do this than re-initing this list for every card compartment
-                    //but then i'd have to keep this matching card list in sync with inventory while both are being modified in the loop
-                    //and that's fine and stuff but eerily similar to a super weird race condition i spent way too long debugging awhile back
-                    //so we'll do it the lazy way. TODO refactor in 1.0.2
-                    List<CardData> allMatchingCards = new List<CardData>();
-
-                    for (int i = 0; i < cardList.Count; i++)
-                    {
-                        //integer value in list index i contains the count of held cards of that index
-                        int numHeldCards = cardList[i];
-                        if (numHeldCards > numHeldCardsShouldBeOver)
-                        {
-                            //when we find a held card, grab the card data for it and put it in the card array
-                            CardData insp = CPlayerData.GetCardData(i, ECardExpansionType.Tetramon, false);
-                            Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString());
-                            float currentMP = CPlayerData.GetCardMarketPrice(insp);
-
-                            //check to see if the card's price is within the bounds of the high/low inclusion configuration
-                            if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
-                            {
-                                //cardData = insp;
-                                allMatchingCards.Add(insp);
-                                Plugin.Logger.LogInfo("Card price " + currentMP + " meets price restrictions. Adding to list...");
-                                
-                            }
-                            else
-                            {
-                                Plugin.Logger.LogInfo("Card price is outside price restriction band (" + currentMP + "). Continuing search...");
-                            }
-
-                        }
-                    }
-                    if (allMatchingCards.Count > 0)
-                    {
-                        //get the largest card
-                        allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
-                        //Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
-                        //Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
-                        //grab first card in the sorted list
-                        cardData = allMatchingCards[0];
-                    }
-
-
+                    CardData cardData = allCardsSorted.FirstOrDefault();
+                    
                     if (cardData != null && cardData.monsterType != EMonsterType.None)
                     {
                         //ref card shelf load from save method
@@ -100,12 +137,16 @@ public static class PatchIt
                         cardUi.transform.rotation = component.transform.rotation;
                         component.SetCardUIFollow(cardUi);
                         component.SetEnableCollision(false);
+
                         //actually set the card on the shelf
                         cardCompart.SetCardOnShelf(component);
                         cardUi.m_IgnoreCulling = false;
-                        Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
+
                         //decrement inventory for that card
+                        Plugin.Logger.LogInfo("Reducing held card count by 1 for monster " + cardData.monsterType.ToString());
                         CPlayerData.ReduceCard(cardData, 1);
+                        allCardsSorted.Remove(cardData);
+
                         if (Harmony.HasAnyPatches("AutoSetPrices") && Plugin.m_ConfigTryTriggerAutoSetPricesMod.Value)
                         {
                             //try to ask it to update prices
@@ -146,7 +187,7 @@ public static class PatchIt
 
         Plugin.Logger.LogInfo("Reduced " + cardData.monsterType.ToString() + " by " + reduceAmount);
         int cardIndex = CPlayerData.GetCardSaveIndex(cardData);
-        int heldCards = CPlayerData.GetCardAmountByIndex(cardIndex, ECardExpansionType.Tetramon, false);
+        int heldCards = CPlayerData.GetCardAmountByIndex(cardIndex, cardData.expansionType, cardData.isDestiny);
         Plugin.Logger.LogInfo("Player card amount for monster " + cardData.monsterType.ToString() + " with index " + cardIndex + " is " + heldCards + " num cards.");
     }
 

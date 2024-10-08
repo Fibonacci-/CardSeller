@@ -22,6 +22,12 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<KeyboardShortcut> m_ConfigKeyboardTriggerCardSet;
     internal static ConfigEntry<bool> m_ConfigOnlySellDuplicates;
 
+    //filter config settings
+    internal static ConfigEntry<bool> m_ConfigShouldSellTetramonCards;
+    internal static ConfigEntry<bool> m_ConfigShouldSellDestinyCards;
+    internal static ConfigEntry<bool> m_ConfigShouldSellGhostCards;
+    internal static ConfigEntry<bool> m_ConfigShouldSellDestinyGhostCards;
+
     //trigger config settings
     internal static ConfigEntry<bool> m_ConfigShouldTriggerOnCustomerCardPickup;
     internal static ConfigEntry<bool> m_ConfigShouldTriggerOnDayStart;
@@ -36,6 +42,12 @@ public class Plugin : BaseUnityPlugin
         m_ConfigSellOnlyLessThanMP = Config.Bind("General", "SellOnlyLessThan", 100.00f, "Ignore cards in the album with a market value above this.");
         m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCardsKey", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
         m_ConfigOnlySellDuplicates = Config.Bind("General", "SellOnlyDuplicates", false, "Ignore cards in the album with a quantity of 1");
+
+        //filter config init
+        m_ConfigShouldSellTetramonCards = Config.Bind("Filters", "ShouldSellTetramonCards", true, "Do you want to sell your Tetramon set cards?");
+        m_ConfigShouldSellDestinyCards = Config.Bind("Filters", "ShouldSellDestinyCards", true, "Do you want to sell your Destiny set cards?");
+        m_ConfigShouldSellGhostCards = Config.Bind("Filters", "ShouldSellGhostCards", false, "Do you want to sell your white Ghost cards?");
+        m_ConfigShouldSellDestinyGhostCards = Config.Bind("Filters", "ShouldSellDestinyGhostCards", false, "Do you want to sell your dimension (aka black/Destiny) ghost cards?");
 
         //trigger config init
         m_ConfigShouldTriggerOnCustomerCardPickup = Config.Bind("Triggers", "ShouldTriggerOnCardPickup", false, "Do you want your cards to automatically be placed on all empty shelves whenever a customer picks up a card?");

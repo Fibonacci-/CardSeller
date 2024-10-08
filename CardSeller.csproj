@@ -36,6 +36,10 @@
       <HintPath>lib\netstandard.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="Unity.TextMeshPro, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>lib\Unity.TextMeshPro.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">

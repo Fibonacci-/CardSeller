@@ -91,6 +91,7 @@ public static class PatchIt
             Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
             Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
         }
+        Plugin.Logger.LogInfo("Finished finding cards.");
         return allMatchingCards;
     }
 
@@ -102,6 +103,7 @@ public static class PatchIt
         isRunning = true;
 
         List<CardData> allCardsSorted = GetCompatibleCards();
+        Plugin.Logger.LogInfo("Got " + allCardsSorted.Count + " cards to place");
 
         //find all card shelves in the shop
         List<CardShelf> cardShelfList = CSingleton<ShelfManager>.Instance.m_CardShelfList;

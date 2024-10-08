@@ -119,7 +119,7 @@ public static class PatchIt
             //find all the compartments in that shelf
             List<InteractableCardCompartment> cardCompartments = shelf.GetCardCompartmentList();
             int maxLoop = cardCompartments.Count;
-            if(maxLoop > allCardsSorted.Count) maxLoop = allCardsSorted.Count;
+            if(maxLoop > totalMatchingCards) maxLoop = totalMatchingCards;
 
             for(int j = 0; j < cardCompartments.Count; j++)
             {

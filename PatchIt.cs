@@ -23,8 +23,7 @@ public static class PatchIt
         List<CardData> retVal = new List<CardData>();
 
         //allow for selling only duplicates
-        int numHeldCardsShouldBeOver = 0;
-        if (Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+        int numHeldCardsShouldBeOver = Plugin.m_ConfigKeepCardQty.Value;
 
         //find items in the CardCollectedList where we have more than X in inventory
         List<int> cardList = CPlayerData.GetCardCollectedList(expansionType, findGhostDimensionCards);
@@ -107,13 +106,13 @@ public static class PatchIt
         foreach (CardData card in allCardsSorted)
         {
             int tempNumCards = CPlayerData.GetCardAmount(card);
-            if (tempNumCards > 0 && Plugin.m_ConfigOnlySellDuplicates.Value)
+            if (tempNumCards > Plugin.m_ConfigKeepCardQty.Value)
             {
                 //we would have already gotten only cards with 2 or more quantity
                 //subtract 1 from expected qty
-                tempNumCards--;
+                tempNumCards -= Plugin.m_ConfigKeepCardQty.Value;
+                totalMatchingCards += tempNumCards;
             }
-            totalMatchingCards += tempNumCards;
         }
         Plugin.Logger.LogInfo("Got " + totalMatchingCards + " cards to place");
 
@@ -132,7 +131,8 @@ public static class PatchIt
             {
                 //will pass by ref later. can't use foreach
                 InteractableCardCompartment cardCompart = cardCompartments[j];
-                if (cardCompart.m_StoredCardList.Count == 0 && !cardCompart.m_ItemNotForSale)
+                if (cardCompart.m_StoredCardList.Count == 0 && !cardCompart.m_ItemNotForSale
+                    && !shelf.GetIsBoxedUp())
                 {
                     //instantiate card
                     CardData cardData = allCardsSorted.FirstOrDefault();
@@ -163,8 +163,7 @@ public static class PatchIt
                         CPlayerData.ReduceCard(cardData, 1);
 
                         //allow for selling only duplicates
-                        int numHeldCardsShouldBeOver = 0;
-                        if (Plugin.m_ConfigOnlySellDuplicates.Value) numHeldCardsShouldBeOver = 1;
+                        int numHeldCardsShouldBeOver = Plugin.m_ConfigKeepCardQty.Value;
                         if (CPlayerData.GetCardAmount(cardData) == numHeldCardsShouldBeOver)
                         {
                             allCardsSorted.Remove(cardData);

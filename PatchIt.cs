@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -54,53 +55,54 @@ public static class PatchIt
         return retVal;
     }
 
-    private static List<CardData> GetCompatibleCards()
+    private static async Task<List<CardData>> GetCompatibleCards()
     {
+        return await Task<List<CardData>>.Run(() =>
+        {
+            List<CardData> allMatchingCards = new List<CardData>();
+            //pull in whatever card lists are enabled
+            if (Plugin.m_ConfigShouldSellTetramonCards.Value)
+            {
+                Plugin.Logger.LogInfo("Tetramon selling enabled. Searching for compatible Tetramon cards...");
+                allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Tetramon));
+            }
+            if (Plugin.m_ConfigShouldSellDestinyCards.Value)
+            {
+                Plugin.Logger.LogInfo("Destiny selling enabled. Searching for compatible Destiny cards...");
+                allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Destiny));
+            }
+            if (Plugin.m_ConfigShouldSellGhostCards.Value)
+            {
+                Plugin.Logger.LogInfo("Ghost selling enabled. Searching for compatible Ghost cards...");
+                allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, false));
+            }
+            if (Plugin.m_ConfigShouldSellDestinyGhostCards.Value)
+            {
+                Plugin.Logger.LogInfo("Destiny Ghost selling enabled. Searching for compatible Destiny Ghost cards...");
+                allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, true));
+            }
 
-        List<CardData> allMatchingCards = new List<CardData>();
 
-        //pull in whatever card lists are enabled
-        if (Plugin.m_ConfigShouldSellTetramonCards.Value)
-        {
-            Plugin.Logger.LogInfo("Tetramon selling enabled. Searching for compatible Tetramon cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Tetramon));
-        }
-        if (Plugin.m_ConfigShouldSellDestinyCards.Value)
-        {
-            Plugin.Logger.LogInfo("Destiny selling enabled. Searching for compatible Destiny cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Destiny));
-        }
-        if (Plugin.m_ConfigShouldSellGhostCards.Value)
-        {
-            Plugin.Logger.LogInfo("Ghost selling enabled. Searching for compatible Ghost cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, false));
-        }
-        if(Plugin.m_ConfigShouldSellDestinyGhostCards.Value)
-        {
-            Plugin.Logger.LogInfo("Destiny Ghost selling enabled. Searching for compatible Destiny Ghost cards...");
-            allMatchingCards.AddRange(GetCompatibleCards(ECardExpansionType.Ghost, true));
-        }
-
-
-        if (allMatchingCards.Count > 0)
-        {
-            //get the largest card
-            allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
-            Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
-            Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
-        }
-        Plugin.Logger.LogInfo("Finished finding cards.");
-        return allMatchingCards;
+            if (allMatchingCards.Count > 0)
+            {
+                //get the largest card
+                allMatchingCards.Sort((c, d) => CPlayerData.GetCardMarketPrice(d).CompareTo(CPlayerData.GetCardMarketPrice(c)));
+                Plugin.Logger.LogInfo("First index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[0]));
+                Plugin.Logger.LogInfo("Last index of sorted array MP: " + CPlayerData.GetCardMarketPrice(allMatchingCards[allMatchingCards.Count - 1]));
+            }
+            Plugin.Logger.LogInfo("Finished finding cards.");
+            return allMatchingCards;
+        });
     }
 
 
 
-    private static void DoShelfPut()
+    private static async void DoShelfPut()
     {
         if(isRunning) return;
         isRunning = true;
 
-        List<CardData> allCardsSorted = GetCompatibleCards();
+        List<CardData> allCardsSorted = await GetCompatibleCards();
         
         int totalMatchingCards = 0;
         foreach (CardData card in allCardsSorted)

@@ -3,6 +3,7 @@ using CardSeller;
 using HarmonyLib;
 using JetBrains.Annotations;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -35,19 +36,26 @@ public static class PatchIt
             int numHeldCards = cardList[i];
             if (numHeldCards > numHeldCardsShouldBeOver)
             {
-                //when we find a held card, grab the card data for it and put it in the card array
-                CardData insp = CPlayerData.GetCardData(i, expansionType, findGhostDimensionCards);
-                float currentMP = CPlayerData.GetCardMarketPrice(insp);
+                try
+                {
+                    //when we find a held card, grab the card data for it and put it in the card array
+                    CardData insp = CPlayerData.GetCardData(i, expansionType, findGhostDimensionCards);
+                    float currentMP = CPlayerData.GetCardMarketPrice(insp);
 
-                //check to see if the card's price is within the bounds of the high/low inclusion configuration
-                if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
-                {
-                    retVal.Add(insp);
-                    Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString() + ". Card price " + currentMP + " meets price restrictions. Adding to list...");
+                    //check to see if the card's price is within the bounds of the high/low inclusion configuration
+                    if (currentMP > Plugin.m_ConfigSellOnlyGreaterThanMP.Value && currentMP < Plugin.m_ConfigSellOnlyLessThanMP.Value)
+                    {
+                        retVal.Add(insp);
+                        Plugin.Logger.LogInfo("Finding held cards: Player has " + numHeldCards + " cards of monster type " + insp.monsterType.ToString() + ". Card price " + currentMP + " meets price restrictions. Adding to list...");
+                    }
+                    else
+                    {
+                        Plugin.Logger.LogInfo("Card price is outside price restriction band (" + currentMP + "). Continuing search...");
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    Plugin.Logger.LogInfo("Card price is outside price restriction band (" + currentMP + "). Continuing search...");
+                    Plugin.Logger.LogError(e); 
                 }
 
             }
@@ -95,27 +103,28 @@ public static class PatchIt
         });
     }
 
-
-
-    private static async void DoShelfPut()
+    private static async Task<int> CountMatchingCards(List<CardData> allMatchingCards)
     {
-        if(isRunning) return;
-        isRunning = true;
-
-        List<CardData> allCardsSorted = await GetCompatibleCards();
-        
-        int totalMatchingCards = 0;
-        foreach (CardData card in allCardsSorted)
+        return await Task<int>.Run(() =>
         {
-            int tempNumCards = CPlayerData.GetCardAmount(card);
-            if (tempNumCards > Plugin.m_ConfigKeepCardQty.Value)
+            int totalMatchingCards = 0;
+            foreach (CardData card in allMatchingCards)
             {
-                //we would have already gotten only cards with 2 or more quantity
-                //subtract 1 from expected qty
-                tempNumCards -= Plugin.m_ConfigKeepCardQty.Value;
-                totalMatchingCards += tempNumCards;
+                int tempNumCards = CPlayerData.GetCardAmount(card);
+                if (tempNumCards > Plugin.m_ConfigKeepCardQty.Value)
+                {
+                    //we would have already gotten only cards with 2 or more quantity
+                    //subtract 1 from expected qty
+                    tempNumCards -= Plugin.m_ConfigKeepCardQty.Value;
+                    totalMatchingCards += tempNumCards;
+                }
             }
-        }
+            return totalMatchingCards;
+        });
+    }
+
+    private static IEnumerator SetCardsOnShelfPerFrame(List<CardData> allCardsSorted, int totalMatchingCards)
+    {
         Plugin.Logger.LogInfo("Got " + totalMatchingCards + " cards to place");
 
         int placedCards = 0;
@@ -127,9 +136,10 @@ public static class PatchIt
             //find all the compartments in that shelf
             List<InteractableCardCompartment> cardCompartments = shelf.GetCardCompartmentList();
             int maxLoop = cardCompartments.Count;
-            if(maxLoop > totalMatchingCards) maxLoop = totalMatchingCards;
+            if (maxLoop > totalMatchingCards) maxLoop = totalMatchingCards;
+            yield return null;
 
-            for(int j = 0; j < cardCompartments.Count; j++)
+            for (int j = 0; j < cardCompartments.Count; j++)
             {
                 //will pass by ref later. can't use foreach
                 InteractableCardCompartment cardCompart = cardCompartments[j];
@@ -138,7 +148,7 @@ public static class PatchIt
                 {
                     //instantiate card
                     CardData cardData = allCardsSorted.FirstOrDefault();
-                    
+
                     if (cardData != null && cardData.monsterType != EMonsterType.None)
                     {
                         //ref card shelf load from save method
@@ -172,6 +182,7 @@ public static class PatchIt
                         }
 
                         placedCards++;
+                        yield return null;
 
                         if (Harmony.HasAnyPatches("AutoSetPrices") && Plugin.m_ConfigTryTriggerAutoSetPricesMod.Value)
                         {
@@ -187,6 +198,7 @@ public static class PatchIt
                                 Plugin.Logger.LogError("Couldn't ask AutoSetPrices to update price in card slot! Stacktrace:\r\n" + e.Message);
                             }
                         }
+                        yield return null;
                     }
 
                 }
@@ -216,6 +228,17 @@ public static class PatchIt
         }
     }
 
+    private static async void DoShelfPut()
+    {
+        if(isRunning) return;
+        isRunning = true;
+
+        List<CardData> allCardsSorted = await GetCompatibleCards();
+        int totalMatchingCards = await CountMatchingCards(allCardsSorted);
+
+        StaticCoroutine.Start(SetCardsOnShelfPerFrame(allCardsSorted, totalMatchingCards));
+    }
+
     private static void TellAutoSetPrices(ref InteractableCardCompartment cardCompart)
     {
         //this needs to stay in its own function
@@ -240,9 +263,9 @@ public static class PatchIt
 
     [HarmonyPatch(typeof(Customer), "TakeCardFromShelf")]
     [HarmonyPostfix]
-    private static void OnCustomerTakeCardFromShelfPostFix(Customer __instance, List<InteractableCard3d> ___m_CardInBagList)
+    private static void OnCustomerTakeCardFromShelfPostFix(Customer __instance, InteractableCardCompartment ___m_CurrentCardCompartment)
     {
-        if (Plugin.m_ConfigShouldTriggerOnCustomerCardPickup.Value)
+        if (Plugin.m_ConfigShouldTriggerOnCustomerCardPickup.Value && ___m_CurrentCardCompartment != null && ___m_CurrentCardCompartment.m_StoredCardList.Count < 1)
         {
             Plugin.Logger.LogInfo("Customer took a card from the shelf! Filling all empty card sale shelves...");
             DoShelfPut();

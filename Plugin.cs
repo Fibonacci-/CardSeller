@@ -20,7 +20,6 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<float> m_ConfigSellOnlyGreaterThanMP;
     internal static ConfigEntry<float> m_ConfigSellOnlyLessThanMP;
     internal static ConfigEntry<KeyboardShortcut> m_ConfigKeyboardTriggerCardSet;
-    internal static ConfigEntry<bool> m_ConfigOnlySellDuplicates;
     internal static ConfigEntry<int> m_ConfigKeepCardQty;
     internal static ConfigEntry<bool> m_ConfigShouldShowProgressPopUp;
 
@@ -43,9 +42,8 @@ public class Plugin : BaseUnityPlugin
         m_ConfigSellOnlyGreaterThanMP = Config.Bind("General", "SellOnlyGreaterThan", 0.50f, "Ignore cards in the album with a market value below this.");
         m_ConfigSellOnlyLessThanMP = Config.Bind("General", "SellOnlyLessThan", 100.00f, "Ignore cards in the album with a market value above this.");
         m_ConfigKeyboardTriggerCardSet = Config.Bind<KeyboardShortcut>("General", "SetOutCardsKey", new KeyboardShortcut(KeyCode.F9, Array.Empty<KeyCode>()), "Keyboard shortcut to set out cards.");
-        m_ConfigOnlySellDuplicates = Config.Bind("General", "SellOnlyDuplicates", false, "THIS CONFIG OPTION HAS BEEN REMOVED USE 'KeepCardQty': Ignore cards in the album with a quantity of 1");
         //grab the old duplicates value, use it as the default value here
-        m_ConfigKeepCardQty = Config.Bind("General", "KeepCardQty", m_ConfigOnlySellDuplicates.Value ? 1 : 0, "Keep at least this many duplicates in the album");
+        m_ConfigKeepCardQty = Config.Bind("General", "KeepCardQty", 0, "Keep at least this many duplicates in the album");
         m_ConfigShouldShowProgressPopUp = Config.Bind("General", "ShowPopUpForNumCardsSet", false, "When the mod is triggered, show text on-screen with information about how many cards match the filter(s) and how many were placed. Note: not recommended in conjunction with the 'ShouldTriggerOnCardPickup' option.");
 
         //filter config init
@@ -74,6 +72,7 @@ public class Plugin : BaseUnityPlugin
 
     private void OnDestroy()
     {
+        StaticCoroutine.StopAll();
         this.harmony?.UnpatchSelf();
         Logger.LogInfo($"Plugin {CSInfo.PLUGIN_ID} is unloaded!");
     }
